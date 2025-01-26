@@ -78,7 +78,19 @@ func parseConfig(filename string) Config {
 }
 
 func main() {
-	configFile := findConfigFile()
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: main <config-directory>")
+		os.Exit(1)
+	}
+
+	configDir := os.Args[1]
+	files, err := filepath.Glob(filepath.Join(configDir, "*.ndl"))
+	if err != nil || len(files) == 0 {
+		fmt.Println("No config file found in the specified directory")
+		os.Exit(1)
+	}
+
+	configFile := files[0]
 	config := parseConfig(configFile)
 	jsonOutput, err := json.Marshal(config)
 	if err != nil {
