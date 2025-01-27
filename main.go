@@ -26,6 +26,7 @@ func defaultConfig() Config {
 		VecGrowthFactor: 1.5,
 		DevMode:         false,
 		Debug:           false,
+		OutputFile:      "main",
 	}
 }
 
