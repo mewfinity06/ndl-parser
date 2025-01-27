@@ -10,10 +10,14 @@ import (
 )
 
 type Config struct {
+	// Vec
 	VecStartingSize int     `json:"vec_starting_size"`
 	VecGrowthFactor float64 `json:"vec_growth_factor"`
-	DevMode         bool    `json:"dev_mode"`
-	Debug           bool    `json:"debug"`
+	// Debug & Dev
+	DevMode bool `json:"dev_mode"`
+	Debug   bool `json:"debug"`
+	// Output
+	OutputFile string `json:"output_file"`
 }
 
 func defaultConfig() Config {
@@ -23,14 +27,6 @@ func defaultConfig() Config {
 		DevMode:         false,
 		Debug:           false,
 	}
-}
-
-func findConfigFile() string {
-	files, err := filepath.Glob("*.ndl")
-	if err != nil || len(files) == 0 {
-		return ""
-	}
-	return files[0]
 }
 
 func parseConfig(filename string) Config {
@@ -62,6 +58,8 @@ func parseConfig(filename string) Config {
 				fmt.Sscanf(value, "%d", &config.VecStartingSize)
 			case "vec_growth_factor":
 				fmt.Sscanf(value, "%v", &config.VecGrowthFactor)
+			case "output":
+				fmt.Sscanf(value, "%s", &config.OutputFile)
 			case "dev_mode":
 				config.DevMode = strings.ToLower(value) == "true"
 			case "debug":
