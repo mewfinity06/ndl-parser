@@ -6,71 +6,67 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
 type Config struct {
-	// Vec
 	VecStartingSize int     `json:"vec_starting_size"`
 	VecGrowthFactor float64 `json:"vec_growth_factor"`
-	// Debug & Dev
-	DevMode bool `json:"dev_mode"`
-	Debug   bool `json:"debug"`
-	// Output
-	OutputFile string `json:"output_file"`
+	DevMode         bool    `json:"dev_mode"`
+	Debug           bool    `json:"debug"`
+	OutputFile      string  `json:"output_file"`
 }
 
-func defaultConfig() Config {
-	return Config{
-		VecStartingSize: 0,
-		VecGrowthFactor: 1.5,
-		DevMode:         false,
-		Debug:           false,
-		OutputFile:      "main",
-	}
-}
+var configPattern = regexp.MustCompile(`\[(.*?)\](.*)`) // Precompiled regex for efficiency
 
 func parseConfig(filename string) Config {
+	config := Config{VecGrowthFactor: 1.5, OutputFile: "main"}
 	if filename == "" {
-		return defaultConfig()
+		return config
 	}
 
 	file, err := os.Open(filename)
 	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return defaultConfig()
+		fmt.Fprintln(os.Stderr, "Error opening file:", err)
+		return config
 	}
 	defer file.Close()
 
-	config := defaultConfig()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue // Skip comments and empty lines
+		if line == "" || line[0] == '#' {
+			continue
 		}
-		if strings.HasPrefix(line, "[") && strings.Contains(line, "]") {
-			parts := strings.SplitN(line, "]", 2)
-			key := strings.TrimSpace(parts[0][1:])
-			value := strings.TrimSpace(strings.TrimSuffix(parts[1], ";"))
+
+		matches := configPattern.FindStringSubmatch(line)
+		if len(matches) == 3 {
+			key := matches[1]
+			value := strings.TrimSpace(strings.TrimSuffix(matches[2], ";"))
 
 			switch key {
 			case "vec_starting_size":
-				fmt.Sscanf(value, "%d", &config.VecStartingSize)
+				if v, err := strconv.Atoi(value); err == nil {
+					config.VecStartingSize = v
+				}
 			case "vec_growth_factor":
-				fmt.Sscanf(value, "%v", &config.VecGrowthFactor)
+				if v, err := strconv.ParseFloat(value, 64); err == nil {
+					config.VecGrowthFactor = v
+				}
 			case "output":
-				fmt.Sscanf(value, "%s", &config.OutputFile)
+				config.OutputFile = value
 			case "dev_mode":
-				config.DevMode = strings.ToLower(value) == "true"
+				config.DevMode = (value == "true")
 			case "debug":
-				config.Debug = strings.ToLower(value) == "true"
+				config.Debug = (value == "true")
 			}
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Println("Error reading file:", err)
+		fmt.Fprintln(os.Stderr, "Error reading file:", err)
 	}
 
 	return config
@@ -78,22 +74,21 @@ func parseConfig(filename string) Config {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: main <config-directory>")
+		fmt.Fprintln(os.Stderr, "Usage: main <config-directory>")
 		os.Exit(1)
 	}
 
 	configDir := os.Args[1]
 	files, err := filepath.Glob(filepath.Join(configDir, "*.ndl"))
 	if err != nil || len(files) == 0 {
-		fmt.Println("No config file found in the specified directory")
+		fmt.Fprintln(os.Stderr, "No config file found in the specified directory")
 		os.Exit(1)
 	}
 
-	configFile := files[0]
-	config := parseConfig(configFile)
+	config := parseConfig(files[0])
 	jsonOutput, err := json.Marshal(config)
 	if err != nil {
-		fmt.Println("Error encoding JSON:", err)
+		fmt.Fprintln(os.Stderr, "Error encoding JSON:", err)
 		os.Exit(1)
 	}
 	fmt.Println(string(jsonOutput))
